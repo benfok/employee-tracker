@@ -14,6 +14,7 @@ const mainMenu = [
             {name: 'View All Departments', value: 'viewDepts'},
             {name: 'View All Roles', value: 'viewRoles'},
             {name: 'View All Employees', value: 'viewEmployees'},
+            {name: 'View All Employees By Manager', value: 'viewEmployeesByManager'},
             {name: 'Add A Department', value: 'addDept'},
             {name: 'Add a Role', value: 'addRole'},
             {name: 'Add a Department', value: 'addDept'},
@@ -36,6 +37,9 @@ const showMainMenu = () => {
                 break;
             case 'viewEmployees':
                 getEmployees();
+                break;
+            case 'viewEmployeesByManager':
+                getEmployeesByManager();
                 break;
             case 'addDept':
                 addDepartment();
@@ -90,11 +94,49 @@ const getEmployees = () => {
         `SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id ORDER BY department`, 
         (error, results) => {
         if (error) {
-            return 'Roles cannot be retrieved'
+            return 'Employees cannot be retrieved'
         }   
             console.log(' ');
             console.table(results);
         showMainMenu();
+    });
+};
+const getEmployeesByManager = () => {
+    //return all employees after selecting a manager
+    db.query(
+        // query returns a distinct list of only those employees who are managers of other employes
+        `SELECT DISTINCT m.id, CONCAT(m.first_name, ' ' , m.last_name) AS manager, b.title FROM employee a JOIN employee m ON a.manager_id = m.id JOIN role b ON m.role_id = b.id WHERE a.manager_id IS NOT NULL`, 
+        (error, results) => {
+        if (error) {
+            return 'Managers cannot be retrieved'
+        }   
+        inquirer.prompt([
+            {
+                type: 'list',
+                message: 'Select a manager to view their employees',
+                name: 'manager',
+                choices: 
+                // take the SQL data and convert to an array of key:value pair objects for the list
+                results.map(({ id, manager }) => ({
+                    name: manager,
+                    value: id
+                }))
+                
+            }
+        ])
+        .then((answers) => {
+            db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id WHERE a.manager_id = ? ORDER BY b.title`, [answers.manager], (error, results) => {
+                if (error) throw error;
+                console.log(results);
+                console.log(`\x1b[33m%s\x1b[0m`, `\n Employees of ${results[0].manager}:`);
+                console.table(results);
+                console.log(' ');
+                showMainMenu();
+            })
+        })
+        .catch((error) => {
+            console.log(error);
+        });
     });
 };
 
@@ -131,7 +173,7 @@ const addDepartment = () => {
 
 const addRole = () => {
     // run a query to pull back live data for the department lookup
-    db.query('SELECT * FROM department', (error, response) => {
+    db.query('SELECT * FROM department', (error, results) => {
         if(error) throw error;
         inquirer.prompt([
             {
@@ -166,7 +208,7 @@ const addRole = () => {
                 name: 'roleDept',
                 choices: 
                 // take the SQL data and convert to an array of key:value pair objects for the list
-                response.map(({ id, name }) => ({
+                results.map(({ id, name }) => ({
                     name: name,
                     value: id
                 }))
@@ -193,10 +235,10 @@ const addRole = () => {
 
 const addEmployee = () => {
     // run two queries to pull back live data for the role manager lookups
-    db.query('SELECT id, title FROM role; SELECT a.id, a.first_name, a.last_name, b.title FROM employee a JOIN role b ON a.role_id = b.id', (error, response) => {
+    db.query('SELECT id, title FROM role; SELECT a.id, a.first_name, a.last_name, b.title FROM employee a JOIN role b ON a.role_id = b.id', (error, results) => {
         if(error) throw error;
         // convert the response data to an array
-        const [roles, employees] = response;
+        const [roles, employees] = results;
         inquirer.prompt([
             {
                 type: 'input',
@@ -269,7 +311,7 @@ const addEmployee = () => {
 };
 
 const updateEmployee = () => {
-    db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS name, b.title FROM employee a JOIN role b ON a.role_id = b.id`, (error, response) => {
+    db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS name, b.title FROM employee a JOIN role b ON a.role_id = b.id`, (error, results) => {
         if (error) throw error;
         inquirer.prompt([
             {
@@ -278,7 +320,7 @@ const updateEmployee = () => {
                 name: 'employee',
                 choices: 
                 // take the SQL data and convert to an array of key:value pair objects for the list
-                response.map(({ id, name, title }) => ({
+                results.map(({ id, name, title }) => ({
                     name: `${name} | ${title}`,
                     value: id
                 }))
@@ -288,9 +330,9 @@ const updateEmployee = () => {
             db.query(`
             SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id WHERE a.id = ? ORDER BY department; 
             SELECT * FROM role;`, 
-            [answer.employee], (error, response) => {
+            [answer.employee], (error, result) => {
                 if (error) throw (error);
-                const [chosenEmployee, roles] = response;
+                const [chosenEmployee, roles] = results;
                 console.log(' ');
                 console.table(chosenEmployee);
                 inquirer.prompt([
