@@ -15,11 +15,13 @@ const mainMenu = [
             {name: 'View All Roles', value: 'viewRoles'},
             {name: 'View All Employees', value: 'viewEmployees'},
             {name: 'View All Employees By Manager', value: 'viewEmployeesByManager'},
+            {name: 'View All Employees By Department', value: 'viewEmployeesByDept'},
             {name: 'Add A Department', value: 'addDept'},
             {name: 'Add a Role', value: 'addRole'},
             {name: 'Add a Department', value: 'addDept'},
             {name: 'Add an Employee', value: 'addEmployee'},
             {name: `Update an Employee's Role and/or Manager`, value: 'updateEmployee'},
+            {name: `View Salary Budget and Head Count by Department`, value: 'salaryByDept'},
             {name: 'Exit', value: 'exit'}
         ]
     }
@@ -41,6 +43,9 @@ const showMainMenu = () => {
             case 'viewEmployeesByManager':
                 getEmployeesByManager();
                 break;
+            case 'viewEmployeesByDept':
+                getEmployeesByDept();
+                break;
             case 'addDept':
                 addDepartment();
                 break;
@@ -52,6 +57,9 @@ const showMainMenu = () => {
                 break;
             case 'updateEmployee':
                 updateEmployee();
+                break;
+            case 'salaryByDept':
+                salaryByDept();
                 break;
             case 'exit':
                 console.log('Goodbye');
@@ -91,7 +99,7 @@ const getRoles = () => {
 const getEmployees = () => {
     //return all employees
     db.query(
-        `SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id ORDER BY department`, 
+        `SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM employee a LEFT JOIN role b ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id ORDER BY department`, 
         (error, results) => {
         if (error) {
             return 'Employees cannot be retrieved'
@@ -101,6 +109,7 @@ const getEmployees = () => {
         showMainMenu();
     });
 };
+
 const getEmployeesByManager = () => {
     //return all employees after selecting a manager
     db.query(
@@ -109,7 +118,7 @@ const getEmployeesByManager = () => {
         (error, results) => {
         if (error) {
             return 'Managers cannot be retrieved'
-        }   
+        }     
         inquirer.prompt([
             {
                 type: 'list',
@@ -120,15 +129,50 @@ const getEmployeesByManager = () => {
                 results.map(({ id, manager }) => ({
                     name: manager,
                     value: id
-                }))
-                
+                }))           
             }
         ])
         .then((answers) => {
-            db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id WHERE a.manager_id = ? ORDER BY b.title`, [answers.manager], (error, results) => {
+            db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM employee a LEFT JOIN role b ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id WHERE a.manager_id = ? ORDER BY b.title`, [answers.manager], (error, results) => {
                 if (error) throw error;
-                console.log(results);
                 console.log(`\x1b[33m%s\x1b[0m`, `\n Employees of ${results[0].manager}:`);
+                console.table(results);
+                console.log(' ');
+                showMainMenu();
+            })
+        })
+        .catch((error) => {
+            console.log(error);
+        });
+    });
+};
+
+const getEmployeesByDept = () => {
+    //return all employees after selecting a manager
+    db.query(
+        // query returns a list of departments
+        `SELECT * FROM department ORDER BY id`, 
+        (error, results) => {
+        if (error) {
+            return 'Departments cannot be retrieved'
+        }  
+        inquirer.prompt([
+            {
+                type: 'list',
+                message: `Select a department to view a list of it's employees`,
+                name: 'dept',
+                choices: 
+                // take the SQL data and convert to an array of key:value pair objects for the list
+                results.map(({ id, name }) => ({
+                    name: name,
+                    value: id
+                }))
+            }
+        ])
+        .then((answers) => {
+            db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id WHERE c.id = ? ORDER BY b.title`, [answers.dept], (error, results) => {
+                if (error) throw error;
+                console.log(`\x1b[33m%s\x1b[0m`, `\n Employees in ${results[0].department}:`);
                 console.table(results);
                 console.log(' ');
                 showMainMenu();
@@ -410,9 +454,20 @@ const updateEmployee = () => {
     });
 };
 
-                
-                    
- 
+const salaryByDept = () => {
+    //return all roles
+    db.query(
+        'SELECT c.name as department, count(a.id) AS total_head_count, sum(b.salary) AS total_salary FROM employee a JOIN role b ON role_id = b.id JOIN department c ON b.department_id = c.id group by c.name', 
+        (error, results) => {
+        if (error) {
+            return 'Data cannot be retrieved'
+        }   
+            console.log(' ');
+            console.table(results);
+        showMainMenu();
+    });
+};
+
 
 
 
