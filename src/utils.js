@@ -16,12 +16,16 @@ const mainMenu = [
             {name: 'View All Employees', value: 'viewEmployees'},
             {name: 'View All Employees By Manager', value: 'viewEmployeesByManager'},
             {name: 'View All Employees By Department', value: 'viewEmployeesByDept'},
+            {name: `View Salary Budget and Head Count by Department`, value: 'salaryByDept'},
+            new inquirer.Separator(),
             {name: 'Add A Department', value: 'addDept'},
             {name: 'Add a Role', value: 'addRole'},
-            {name: 'Add a Department', value: 'addDept'},
             {name: 'Add an Employee', value: 'addEmployee'},
             {name: `Update an Employee's Role and/or Manager`, value: 'updateEmployee'},
-            {name: `View Salary Budget and Head Count by Department`, value: 'salaryByDept'},
+            // new inquirer.Separator(),
+            {name: `Delete a Department`, value: 'deleteDept'},
+            {name: `Delete a Role`, value: 'deleteRole'},
+            {name: `Delete an Employee`, value: 'deleteEmployee'},
             {name: 'Exit', value: 'exit'}
         ]
     }
@@ -60,6 +64,15 @@ const showMainMenu = () => {
                 break;
             case 'salaryByDept':
                 salaryByDept();
+                break;
+            case 'deleteDept':
+                deleteDept();
+                break;
+            case 'deleteRole':
+                deleteRole();
+                break;
+            case 'deleteEmployee':
+                deleteEmployee();
                 break;
             case 'exit':
                 console.log('Goodbye');
@@ -148,7 +161,7 @@ const getEmployeesByManager = () => {
 };
 
 const getEmployeesByDept = () => {
-    //return all employees after selecting a manager
+    //return all employees for a selected department
     db.query(
         // query returns a list of departments
         `SELECT * FROM department ORDER BY id`, 
@@ -469,7 +482,125 @@ const salaryByDept = () => {
 };
 
 
+const deleteDept = () => {
+    //delete a department
+    db.query(
+        // query returns a list of departments
+        `SELECT * FROM department ORDER BY id`, 
+        (error, results) => {
+            if (error) {
+                return 'Departments cannot be retrieved'
+            }  
+        console.log(`\x1b[31m%s\x1b[0m`, `Note: Delete cannot be undone. Removing a department will also delete any associated roles and employees`);
+        inquirer.prompt([
+            {
+                type: 'list',
+                message: `Select a department to delete or choose "Cancel": `,
+                name: 'dept',
+                choices: 
+                // take the SQL data and convert to an array of key:value pair objects for the list
+                results.map(({ id, name }) => ({
+                    name: name,
+                    value: id
+                })).concat([{ name:'Cancel', value: 'NULL' }])
+            }
+        ])
+        .then((answers) => {
+            if (answers.dept !== 'NULL') {            
+                db.query('DELETE FROM department WHERE id = ?',
+                    [answers.dept], (error, results) => {
+                        if (error) throw error;
+                        console.log(`\x1b[31m%s\x1b[0m`,`\nDepartment and associated role and employee data deleted
+                        `)
+                    });
+                }
+                showMainMenu();     
+        })
+        .catch((error) => {
+            console.log(error);
+        });
+    });
+};
+
+const deleteRole = () => {
+    //delete a role
+    db.query(
+        // query returns a list of roles
+        `SELECT * FROM role ORDER BY id`, 
+        (error, results) => {
+            if (error) {
+                return 'Roles cannot be retrieved'
+            }  
+        console.log(`\x1b[31m%s\x1b[0m`, `Note: Delete cannot be undone. Removing a role will also delete any associated employees`);
+        inquirer.prompt([
+            {
+                type: 'list',
+                message: `Select a role to delete or choose "Cancel": `,
+                name: 'role',
+                choices: 
+                // take the SQL data and convert to an array of key:value pair objects for the list
+                results.map(({ id, title }) => ({
+                    name: title,
+                    value: id
+                })).concat([{ name:'Cancel', value: 'NULL' }])
+            }
+        ])
+        .then((answers) => {
+            if (answers.role !== 'NULL') {            
+                db.query('DELETE FROM role WHERE id = ?',
+                    [answers.role], (error, results) => {
+                        if (error) throw error;
+                        console.log(`\x1b[31m%s\x1b[0m`,`\n Role and associated employee data deleted
+                        `)
+                    });
+                }
+                showMainMenu();     
+        })
+        .catch((error) => {
+            console.log(error);
+        });
+    });
+};
+
+const deleteEmployee = () => {
+    //delete an employee
+    db.query(
+        // query returns a list of employees and their roles
+        `SELECT id, title FROM role; SELECT a.id, a.first_name, a.last_name, b.title FROM employee a JOIN role b ON a.role_id = b.id`, 
+        (error, results) => {
+            if (error) {
+                return 'Employees cannot be retrieved'
+            }  
+        console.log(`\x1b[31m%s\x1b[0m`, `Note: Delete cannot be undone. Removing an employee who is a manager will set all direct report manager ids to NULL`);
+        inquirer.prompt([
+            {
+                type: 'list',
+                message: `Select an employee to delete or choose "Cancel": `,
+                name: 'employee',
+                choices: 
+                // take the SQL data and convert to an array of key:value pair objects for the list
+                results.map(({ id, first_name, last_name, title }) => ({
+                    name: `${first_name} ${last_name} | ${title}`,
+                    value: id
+                })).concat([{ name:'Cancel', value: 'NULL' }])
+            }
+        ])
+        .then((answers) => {
+            if (answers.employee !== 'NULL') {            
+                db.query('DELETE FROM employee WHERE id = ?',
+                    [answers.employee], (error, results) => {
+                        if (error) throw error;
+                        console.log(`\x1b[31m%s\x1b[0m`,`\n Employee data deleted
+                        `)
+                    });
+                }
+                showMainMenu();     
+        })
+        .catch((error) => {
+            console.log(error);
+        });
+    });
+};
 
 
-
-module.exports = { showMainMenu, getDepts, getRoles, getEmployees, addDepartment, addRole, addEmployee, updateEmployee };
+module.exports = { showMainMenu };
