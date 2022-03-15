@@ -3,7 +3,7 @@ const cTable = require('console.table');
 const inquirer = require('inquirer');
 
 
-// Main Menu
+// Main Menu questions
 const mainMenu = [
     {
         type: 'rawlist',
@@ -31,7 +31,9 @@ const mainMenu = [
     }
 ];
 
+// render main menu and call functions based on choice
 const showMainMenu = () => {
+    console.log(' ');
     inquirer.prompt(mainMenu)
     .then((answer) => {
         switch (answer.mainMenu) {
@@ -84,19 +86,19 @@ const showMainMenu = () => {
 
 
 const getDepts = () => {
-    //return all departments
+    //return list of all departments
     db.query('SELECT id, name AS department_name FROM department ORDER BY id', (error, results) => {
         if (error) {
             return 'Departments cannot be retrieved'
         }   
             console.log(' ');
-            console.table(results);
-        showMainMenu();
+            console.table(results);  // display results as a table using cTable
+        showMainMenu(); // return to main menu
     });
 };
 
 const getRoles = () => {
-    //return all roles
+    //return list of all roles
     db.query(
         'SELECT a.id, a.title, a.salary, b.name AS department FROM role a JOIN department b ON a.department_id = b.id', 
         (error, results) => {
@@ -104,13 +106,13 @@ const getRoles = () => {
             return 'Roles cannot be retrieved'
         }   
             console.log(' ');
-            console.table(results);
-        showMainMenu();
+            console.table(results);  // display results as a table using cTable
+        showMainMenu(); // return to main menu
     });
 };
 
 const getEmployees = () => {
-    //return all employees
+    //return a curated list of all employees
     db.query(
         `SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM employee a LEFT JOIN role b ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id ORDER BY department`, 
         (error, results) => {
@@ -118,8 +120,8 @@ const getEmployees = () => {
             return 'Employees cannot be retrieved'
         }   
             console.log(' ');
-            console.table(results);
-        showMainMenu();
+            console.table(results);  // display results as a table using cTable
+        showMainMenu(); // return to main menu
     });
 };
 
@@ -146,12 +148,13 @@ const getEmployeesByManager = () => {
             }
         ])
         .then((answers) => {
+            // return curated list of employees of the selected manager. Using ? to avoid passing variables for security
             db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM employee a LEFT JOIN role b ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id WHERE a.manager_id = ? ORDER BY b.title`, [answers.manager], (error, results) => {
                 if (error) throw error;
                 console.log(`\x1b[33m%s\x1b[0m`, `\n Employees of ${results[0].manager}:`);
                 console.table(results);
                 console.log(' ');
-                showMainMenu();
+                showMainMenu(); // return to main menu
             })
         })
         .catch((error) => {
@@ -183,12 +186,13 @@ const getEmployeesByDept = () => {
             }
         ])
         .then((answers) => {
+            // return curated list of employees of the selected department. Using ? to avoid passing variables for security
             db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id WHERE c.id = ? ORDER BY b.title`, [answers.dept], (error, results) => {
                 if (error) throw error;
                 console.log(`\x1b[33m%s\x1b[0m`, `\n Employees in ${results[0].department}:`);
                 console.table(results);
                 console.log(' ');
-                showMainMenu();
+                showMainMenu(); // return to main menu
             })
         })
         .catch((error) => {
@@ -215,6 +219,7 @@ const addDepartment = () => {
     }])
     .then((answer) => {
         db.query(
+            // insert statement
             'INSERT INTO department SET ?',
             {
                 name: answer.deptName
@@ -274,6 +279,7 @@ const addRole = () => {
         ])
             .then((answers) => {
                 db.query(
+                    // insert statement
                     'INSERT INTO role SET ?',
                     {
                         title: answers.roleTitle,
@@ -349,6 +355,7 @@ const addEmployee = () => {
         ])
             .then((answers) => {
                 db.query(
+                    // insert statement
                     'INSERT INTO employee SET ?',
                     {
                         first_name: answers.firstName,
@@ -368,6 +375,7 @@ const addEmployee = () => {
 };
 
 const updateEmployee = () => {
+    // return list of employees and their roles
     db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS name, b.title FROM employee a JOIN role b ON a.role_id = b.id`, (error, results) => {
         if (error) throw error;
         inquirer.prompt([
@@ -384,6 +392,7 @@ const updateEmployee = () => {
             }
         ])
         .then((answer) => {
+            //return the full details of the employee selected. Using ? to avoid passing variables for security
             db.query(`
             SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id WHERE a.id = ? ORDER BY department; 
             SELECT * FROM role;`, 
@@ -413,6 +422,7 @@ const updateEmployee = () => {
                     }
                 ])
                 .then((responses) => {
+                    // if the role was changed make the update
                     if (responses.roleChange) {
                         db.query(`UPDATE employee SET role_id = ? WHERE id = ? `,
                         [responses.newRole, chosenEmployee[0].id]);
@@ -447,6 +457,7 @@ const updateEmployee = () => {
                                 }
                             ])
                             .then((response) => {
+                            // the the manager was changed make the update
                             if (response.managerChange) {
                                 db.query(`UPDATE employee SET manager_id = ? WHERE id = ? `,
                                 [response.newManager, employee[0].id]);
@@ -468,7 +479,7 @@ const updateEmployee = () => {
 };
 
 const salaryByDept = () => {
-    //return all roles
+    //return accumulated salary and employee head count by department
     db.query(
         'SELECT c.name as department, count(a.id) AS total_head_count, sum(b.salary) AS total_salary FROM employee a JOIN role b ON role_id = b.id JOIN department c ON b.department_id = c.id group by c.name', 
         (error, results) => {
@@ -483,7 +494,7 @@ const salaryByDept = () => {
 
 
 const deleteDept = () => {
-    //delete a department
+    // delete a department
     db.query(
         // query returns a list of departments
         `SELECT * FROM department ORDER BY id`, 
@@ -566,7 +577,7 @@ const deleteEmployee = () => {
     //delete an employee
     db.query(
         // query returns a list of employees and their roles
-        `SELECT id, title FROM role; SELECT a.id, a.first_name, a.last_name, b.title FROM employee a JOIN role b ON a.role_id = b.id`, 
+        `SELECT a.id, a.first_name, a.last_name, b.title FROM employee a JOIN role b ON a.role_id = b.id`, 
         (error, results) => {
             if (error) {
                 return 'Employees cannot be retrieved'
@@ -602,5 +613,5 @@ const deleteEmployee = () => {
     });
 };
 
-
+// export initiating function
 module.exports = { showMainMenu };
