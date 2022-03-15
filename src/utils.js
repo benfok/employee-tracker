@@ -18,7 +18,7 @@ const mainMenu = [
             {name: 'Add a Role', value: 'addRole'},
             {name: 'Add a Department', value: 'addDept'},
             {name: 'Add an Employee', value: 'addEmployee'},
-            {name: `Update an Employee's Role and Manager`, value: 'updateEmployee'},
+            {name: `Update an Employee's Role and/or Manager`, value: 'updateEmployee'},
             {name: 'Exit', value: 'exit'}
         ]
     }
@@ -64,7 +64,7 @@ const getDepts = () => {
         if (error) {
             return 'Departments cannot be retrieved'
         }   
-            console.log('\n');
+            console.log(' ');
             console.table(results);
         showMainMenu();
     });
@@ -78,7 +78,7 @@ const getRoles = () => {
         if (error) {
             return 'Roles cannot be retrieved'
         }   
-            console.log('\n');
+            console.log(' ');
             console.table(results);
         showMainMenu();
     });
@@ -87,12 +87,12 @@ const getRoles = () => {
 const getEmployees = () => {
     //return all employees
     db.query(
-        `SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(a.first_name, ' ', a.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON m.id = a.manager_id ORDER BY department`, 
+        `SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id ORDER BY department`, 
         (error, results) => {
         if (error) {
             return 'Roles cannot be retrieved'
         }   
-            console.log('\n');
+            console.log(' ');
             console.table(results);
         showMainMenu();
     });
@@ -121,7 +121,7 @@ const addDepartment = () => {
                 name: answer.deptName
             }
         );
-        console.log(`\n Department ${answer.deptName} created`);
+        console.log(`\x1b[33m%s\x1b[0m`, `\n Department ${answer.deptName} created`);
         getDepts();
     })
     .catch((error) => {
@@ -182,7 +182,7 @@ const addRole = () => {
                         department_id: answers.roleDept
                     }
                 );
-                console.log(`\n Role ${answers.roleTitle} created`);
+                console.log(`\x1b[33m%s\x1b[0m`, `\n Role ${answers.roleTitle} created`);
                 getRoles();
             })
             .catch((error) => {
@@ -193,7 +193,7 @@ const addRole = () => {
 
 const addEmployee = () => {
     // run two queries to pull back live data for the role manager lookups
-    db.query('SELECT id, title FROM role; SELECT id, first_name, last_name FROM employee', (error, response) => {
+    db.query('SELECT id, title FROM role; SELECT a.id, a.first_name, a.last_name, b.title FROM employee a JOIN role b ON a.role_id = b.id', (error, response) => {
         if(error) throw error;
         // convert the response data to an array
         const [roles, employees] = response;
@@ -242,24 +242,25 @@ const addEmployee = () => {
                 name: 'employeeManager',
                 choices: 
                 // take the SQL data and convert to an array of key:value pair objects for the list
-                employees.map(({ id, first_name, last_name }) => ({
-                    name: `${first_name} ${last_name}`,
+                employees.map(({ id, first_name, last_name, title }) => ({
+                    name: `${first_name} ${last_name} | ${title}`,
                     value: id
-                }))
+                })).concat([{ name:'None', value: 'NULL' }])
             }
         ])
             .then((answers) => {
-                // db.query(
-                //     'INSERT INTO role SET ?',
-                //     {
-                //         title: answers.roleTitle,
-                //         salary: answers.roleSalary,
-                //         department_id: answers.roleDept
-                //     }
-                // );
+                db.query(
+                    'INSERT INTO employee SET ?',
+                    {
+                        first_name: answers.firstName,
+                        last_name: answers.lastName,
+                        role_id: answers.employeeRole,
+                        manager_id: answers.employeeManager
+                    }
+                );
                 console.log(answers);
-                console.log(`\n Employee ${answers.first_name} ${answers.last_name} created`);
-                // getEmployees();
+                console.log(`\x1b[33m%s\x1b[0m`, `\n Employee ${answers.firstName} ${answers.lastName} created`);
+                getEmployees();
             })
             .catch((error) => {
                 console.log(error);
@@ -268,8 +269,110 @@ const addEmployee = () => {
 };
 
 const updateEmployee = () => {
-    console.log('hello');
+    db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS name, b.title FROM employee a JOIN role b ON a.role_id = b.id`, (error, response) => {
+        if (error) throw error;
+        inquirer.prompt([
+            {
+                type: 'list',
+                message: `Select the employee you wish to update to view their details:`,
+                name: 'employee',
+                choices: 
+                // take the SQL data and convert to an array of key:value pair objects for the list
+                response.map(({ id, name, title }) => ({
+                    name: `${name} | ${title}`,
+                    value: id
+                }))
+            }
+        ])
+        .then((answer) => {
+            db.query(`
+            SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id WHERE a.id = ? ORDER BY department; 
+            SELECT * FROM role;`, 
+            [answer.employee], (error, response) => {
+                if (error) throw (error);
+                const [chosenEmployee, roles] = response;
+                console.log(' ');
+                console.table(chosenEmployee);
+                inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        message: `Do you want to change this employee's role?`,
+                        name: 'roleChange'
+                    },
+                    {
+                        type: 'list',
+                        message: 'Choose new role:',
+                        name: 'newRole',
+                        when(answers) {
+                            return answers.roleChange;
+                        },
+                        choices: 
+                            roles.map(({ id, title }) => ({
+                                name: title,
+                                value: id
+                            }))
+                    }
+                ])
+                .then((responses) => {
+                    if (responses.roleChange) {
+                        db.query(`UPDATE employee SET role_id = ? WHERE id = ? `,
+                        [responses.newRole, chosenEmployee[0].id]);
+                        console.log(`\x1b[33m%s\x1b[0m`, `Employee role updated`);
+                    } else {
+                        console.log(`\x1b[33m%s\x1b[0m`, `Employee role unchanged`);
+                    };
+                    return chosenEmployee;
+                })
+                .then((employee) => {
+                    db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS name, b.title FROM employee a JOIN role b ON a.role_id = b.id WHERE a.id <> ?`, 
+                        [employee[0].id], (error, response) => {
+                        if (error) throw error;
+                            inquirer.prompt([
+                                {
+                                    type: 'confirm',
+                                    message: `Do you want to change this employee's manager?`,
+                                    name: 'managerChange'
+                                },
+                                {
+                                    type: 'list',
+                                    message: 'Choose new manager or choose "None:',
+                                    name: 'newManager',
+                                    when(answers) {
+                                        return answers.managerChange;
+                                    },
+                                    choices: 
+                                    response.map(({ id, name, title }) => ({
+                                        name: `${name} | ${title}`,
+                                        value: id
+                                    })).concat([{ name:'None', value: 'NULL' }])
+                                }
+                            ])
+                            .then((response) => {
+                            if (response.managerChange) {
+                                db.query(`UPDATE employee SET manager_id = ? WHERE id = ? `,
+                                [response.newManager, employee[0].id]);
+                                console.log(`\x1b[33m%s\x1b[0m`, `Employee manager updated`);
+                            } else {
+                                console.log(`\x1b[33m%s\x1b[0m`, `Employee manager unchanged`);
+                            };
+                            console.log(' ');
+                            showMainMenu();
+                            })
+                            .catch((error) => {
+                                console.log(error);
+                            });
+                    });
+                });
+            });
+        });
+    });
 };
+
+                
+                    
+ 
+
+
 
 
 module.exports = { showMainMenu, getDepts, getRoles, getEmployees, addDepartment, addRole, addEmployee, updateEmployee };
