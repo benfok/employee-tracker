@@ -54,7 +54,7 @@ There are currently no tests written for this application.
 
 
 ## Screenshot and Walkthrough
-Here are links to Tutorial Videos that show the application in action
+Here are links to Tutorial Videos that show the application in action. If the videos show as blurry, check quality within the video player settings and set it to the highest level.
 
 - [Video 1 - Intro and View Data Functionality](https://drive.google.com/file/d/1TTz72WN_GD1cmgLi7CvEI-6amkMPFmEA/view?usp=sharing).
 - [Video 2 - Add/Update Functionality](https://drive.google.com/file/d/1VldqnmREuPi0H0bMwhh1SQqp10pLbXkT/view?usp=sharing).
