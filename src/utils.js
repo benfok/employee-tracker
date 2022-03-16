@@ -298,7 +298,7 @@ const addRole = () => {
 
 const addEmployee = () => {
     // run two queries to pull back live data for the role manager lookups
-    db.query('SELECT id, title FROM role; SELECT a.id, a.first_name, a.last_name, b.title FROM employee a JOIN role b ON a.role_id = b.id', (error, results) => {
+    db.query('SELECT id, title FROM role; SELECT a.id, a.first_name, a.last_name, b.title FROM employee a JOIN role b ON a.role_id = b.id ORDER BY a.first_name', (error, results) => {
         if(error) throw error;
         // convert the response data to an array
         const [roles, employees] = results;
@@ -376,7 +376,6 @@ const addEmployee = () => {
                                 }
                             );
                     };
-                console.log(answers);
                 console.log(`\x1b[33m%s\x1b[0m`, `\n Employee ${answers.firstName} ${answers.lastName} created`);
                 getEmployees();
             })
@@ -388,7 +387,7 @@ const addEmployee = () => {
 
 const updateEmployee = () => {
     // return list of employees and their roles
-    db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS name, b.title FROM employee a JOIN role b ON a.role_id = b.id`, (error, results) => {
+    db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS name, b.title FROM employee a JOIN role b ON a.role_id = b.id ORDER BY a.first_name`, (error, results) => {
         if (error) throw error;
         inquirer.prompt([
             {
@@ -533,7 +532,7 @@ const deleteDept = () => {
             }
         ])
         .then((answers) => {
-            if (!answers.dept) {            
+            if (!isNaN(answers.dept)) {            
                 db.query('DELETE FROM department WHERE id = ?',
                     [answers.dept], (error, results) => {
                         if (error) throw error;
@@ -541,7 +540,9 @@ const deleteDept = () => {
                         `)
                     });
                 }
-                showMainMenu();     
+                setTimeout(function(){
+                    showMainMenu();
+                }, 1000);
         })
         .catch((error) => {
             console.log(error);
@@ -573,7 +574,7 @@ const deleteRole = () => {
             }
         ])
         .then((answers) => {
-            if (!answers.role) {            
+            if (!isNaN(answers.role)) {            
                 db.query('DELETE FROM role WHERE id = ?',
                     [answers.role], (error, results) => {
                         if (error) throw error;
@@ -581,7 +582,9 @@ const deleteRole = () => {
                         `)
                     });
                 }
-                showMainMenu();     
+                setTimeout(function(){
+                    showMainMenu();
+                }, 1000);    
         })
         .catch((error) => {
             console.log(error);
@@ -593,7 +596,7 @@ const deleteEmployee = () => {
     //delete an employee
     db.query(
         // query returns a list of employees and their roles
-        `SELECT a.id, a.first_name, a.last_name, b.title FROM employee a JOIN role b ON a.role_id = b.id`, 
+        `SELECT a.id, a.first_name, a.last_name, b.title FROM employee a JOIN role b ON a.role_id = b.id ORDER BY a.first_name`, 
         (error, results) => {
             if (error) {
                 return 'Employees cannot be retrieved'
@@ -613,20 +616,22 @@ const deleteEmployee = () => {
             }
         ])
         .then((answers) => {
-            if (!answers.employee) {            
+            if (!isNaN(answers.employee)) {            
                 db.query('DELETE FROM employee WHERE id = ?',
                     [answers.employee], (error, results) => {
                         if (error) throw error;
-                        console.log(`\x1b[31m%s\x1b[0m`,`\n Employee data deleted
-                        `)
+                        console.log(`\x1b[31m%s\x1b[0m`,`\n Employee data deleted\n`);
+                        
                     });
                 }
-                showMainMenu();     
+                setTimeout(function(){
+                    showMainMenu();
+                }, 1000);  
         })
         .catch((error) => {
             console.log(error);
         });
-    });
+    }); 
 };
 
 // export initiating function
