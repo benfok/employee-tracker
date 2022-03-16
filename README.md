@@ -2,7 +2,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Description
-This app functions entirely within the command line as an interface to create, read, update and delete records in a SQL database. The records are representative of employees of a company with data about their department, role, salary and manager. The app is written entirely in JavaScript using Node.js, Inquirer and MySQL2 as frameworks. The app is deployed using Node.js. 
+This app functions entirely within the command line as an interface to create, read, update and delete records in a SQL database. The records are representative of employees of a fictional ski resort company with data about their department, role, salary and manager. The app is written entirely in JavaScript using Node.js, Inquirer and MySQL2 as frameworks. The app is deployed using Node.js. 
 
 <details>
 <summary><strong>Table of Contents</strong></summary>

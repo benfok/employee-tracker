@@ -350,20 +350,32 @@ const addEmployee = () => {
                 employees.map(({ id, first_name, last_name, title }) => ({
                     name: `${first_name} ${last_name} | ${title}`,
                     value: id
-                })).concat([{ name:'None', value: 'NULL' }])
+                })).concat(['None'])
             }
         ])
             .then((answers) => {
-                db.query(
-                    // insert statement
-                    'INSERT INTO employee SET ?',
-                    {
-                        first_name: answers.firstName,
-                        last_name: answers.lastName,
-                        role_id: answers.employeeRole,
-                        manager_id: answers.employeeManager
-                    }
-                );
+                if (isNaN(answers.employeeManager)) {
+                    db.query(
+                        // insert statement
+                        'INSERT INTO employee SET ?',
+                        {
+                            first_name: answers.firstName,
+                            last_name: answers.lastName,
+                            role_id: answers.employeeRole,
+                        }
+                    );
+                    } else {
+                            db.query(
+                                // insert statement
+                                'INSERT INTO employee SET ?',
+                                {
+                                    first_name: answers.firstName,
+                                    last_name: answers.lastName,
+                                    role_id: answers.employeeRole,
+                                    manager_id: answers.employeeManager
+                                }
+                            );
+                    };
                 console.log(answers);
                 console.log(`\x1b[33m%s\x1b[0m`, `\n Employee ${answers.firstName} ${answers.lastName} created`);
                 getEmployees();
@@ -396,7 +408,7 @@ const updateEmployee = () => {
             db.query(`
             SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) as employee, b.title, c.name AS department, b.salary, IF(a.manager_id IS NULL, "None", CONCAT(m.first_name, ' ', m.last_name)) AS manager FROM role b JOIN employee a ON a.role_id = b.id JOIN department c ON b.department_id = c.id LEFT JOIN employee m ON a.manager_id = m.id WHERE a.id = ? ORDER BY department; 
             SELECT * FROM role;`, 
-            [answer.employee], (error, result) => {
+            [answer.employee], (error, results) => {
                 if (error) throw (error);
                 const [chosenEmployee, roles] = results;
                 console.log(' ');
@@ -434,7 +446,7 @@ const updateEmployee = () => {
                 })
                 .then((employee) => {
                     db.query(`SELECT a.id, CONCAT(a.first_name, ' ', a.last_name) AS name, b.title FROM employee a JOIN role b ON a.role_id = b.id WHERE a.id <> ?`, 
-                        [employee[0].id], (error, response) => {
+                        [employee[0].id], (error, results) => {
                         if (error) throw error;
                             inquirer.prompt([
                                 {
@@ -450,18 +462,22 @@ const updateEmployee = () => {
                                         return answers.managerChange;
                                     },
                                     choices: 
-                                    response.map(({ id, name, title }) => ({
+                                    results.map(({ id, name, title }) => ({
                                         name: `${name} | ${title}`,
                                         value: id
-                                    })).concat([{ name:'None', value: 'NULL' }])
+                                    })).concat(['None'])
                                 }
                             ])
                             .then((response) => {
                             // the the manager was changed make the update
-                            if (response.managerChange) {
+                            if (response.managerChange && !isNaN(response.newManager)) {
                                 db.query(`UPDATE employee SET manager_id = ? WHERE id = ? `,
                                 [response.newManager, employee[0].id]);
                                 console.log(`\x1b[33m%s\x1b[0m`, `Employee manager updated`);
+                            } else if (isNaN(response.newManager)) {
+                                db.query(`UPDATE employee SET manager_id = NULL WHERE id = ? `,
+                                [employee[0].id]);
+                                console.log(`\x1b[33m%s\x1b[0m`, `Employee manager removed`); 
                             } else {
                                 console.log(`\x1b[33m%s\x1b[0m`, `Employee manager unchanged`);
                             };
@@ -513,11 +529,11 @@ const deleteDept = () => {
                 results.map(({ id, name }) => ({
                     name: name,
                     value: id
-                })).concat([{ name:'Cancel', value: 'NULL' }])
+                })).concat(['Cancel'])
             }
         ])
         .then((answers) => {
-            if (answers.dept !== 'NULL') {            
+            if (!answers.dept) {            
                 db.query('DELETE FROM department WHERE id = ?',
                     [answers.dept], (error, results) => {
                         if (error) throw error;
@@ -553,11 +569,11 @@ const deleteRole = () => {
                 results.map(({ id, title }) => ({
                     name: title,
                     value: id
-                })).concat([{ name:'Cancel', value: 'NULL' }])
+                })).concat(['Cancel'])
             }
         ])
         .then((answers) => {
-            if (answers.role !== 'NULL') {            
+            if (!answers.role) {            
                 db.query('DELETE FROM role WHERE id = ?',
                     [answers.role], (error, results) => {
                         if (error) throw error;
@@ -593,11 +609,11 @@ const deleteEmployee = () => {
                 results.map(({ id, first_name, last_name, title }) => ({
                     name: `${first_name} ${last_name} | ${title}`,
                     value: id
-                })).concat([{ name:'Cancel', value: 'NULL' }])
+                })).concat(['Cancel'])
             }
         ])
         .then((answers) => {
-            if (answers.employee !== 'NULL') {            
+            if (!answers.employee) {            
                 db.query('DELETE FROM employee WHERE id = ?',
                     [answers.employee], (error, results) => {
                         if (error) throw error;
