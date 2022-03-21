@@ -2,7 +2,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Description
-This app functions entirely within the command line as an interface to create, read, update and delete records in a SQL database. The records are representative of employees of a fictional ski resort company with data about their department, role, salary and manager. The app is written entirely in JavaScript using Node.js, Inquirer and MySQL2 as frameworks. The app is deployed using Node.js. 
+This app functions entirely within the command line as an interface to create, read, update and delete records in a SQL database. The records are representative of employees of a fictional ski resort company with data about their department, role, salary and manager. The app is written entirely in JavaScript using Node.js with the Inquirer and MySQL2 modules. The app is deployed using Node.js. 
 
 <details>
 <summary><strong>Table of Contents</strong></summary>
@@ -21,7 +21,7 @@ This app functions entirely within the command line as an interface to create, r
 ## Installation
 - Clone the repo.
 - Navigate to the folder and run `npm init` followed by `npm install` in order to install the dependencies.
-- Be sure to add your MySQL username and password to the .env file and rename to .env.
+- Be sure to add your MySQL username and password to the .env.EXAMPLE file and rename to .env.
 - Using your preferred CLI to execute MySQL, run first the schema.sql and then the seeds.sql files in the ./db folder in order to create and populate the database.
 
 ## Usage
